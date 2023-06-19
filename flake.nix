@@ -2,7 +2,10 @@
   description = "Playing around with raylib";
 
   inputs.flake-utils.url = "github:numtide/flake-utils";
+
   inputs.nixgl.url = "github:guibou/nixGL";
+  inputs.nixgl.inputs.nixpkgs.follows = "nixpkgs";
+  inputs.nixgl.inputs.flake-utils.follows = "flake-utils";
 
   outputs = { self, nixpkgs, flake-utils, ... }:
     flake-utils.lib.eachDefaultSystem (system:
