@@ -5,7 +5,7 @@ import (
 	rl "github.com/gen2brain/raylib-go/raylib"
 )
 
-//go:embed fragment.glsl
+//go:embed life.frag
 var FRAGMENT_CODE string
 
 func LoadRaylib() {
