@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"image/color"
 	"log"
-	"time"
 
 	rl "github.com/gen2brain/raylib-go/raylib"
 )
@@ -19,64 +18,23 @@ const (
 	TEXTURE_HEIGHT = TEXTURE_WIDTH * 9 / 16
 )
 
-var (
-	FPS int32 = 30
-
-	//go:embed fragment.glsl
-	FRAGMENT_CODE string
-)
-
 func main() {
-	rl.InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "raylib stuff")
-	defer rl.CloseWindow()
-	rl.SetTargetFPS(60)
+	LoadRaylib()
 
-	// rl.SetWindowPosition(0, 0)
-	rl.ToggleFullscreen()
-
-	// image := rl.GenImagePerlinNoise(TEXTURE_WIDTH, TEXTURE_HEIGHT, 0, 0, 4)
-	// image := rl.GenImageWhiteNoise(TEXTURE_WIDTH, TEXTURE_HEIGHT, 0.5)
-	image := rl.GenImageColor(TEXTURE_WIDTH, TEXTURE_HEIGHT, rl.Black)
-
-	buffers := []rl.RenderTexture2D{
-		rl.LoadRenderTexture(TEXTURE_WIDTH, TEXTURE_HEIGHT),
-		rl.LoadRenderTexture(TEXTURE_WIDTH, TEXTURE_HEIGHT),
-	}
-	sourceBuffer := 0
-
-	// load initial image into texture
-	rl.UpdateTexture(
-		buffers[sourceBuffer].Texture,
-		rl.LoadImageColors(image),
-	)
-
-	// load shader with texture size input
-	shader := rl.LoadShaderFromMemory("", FRAGMENT_CODE)
-	textureResolutionLoc := rl.GetShaderLocation(shader, "textureResolution")
-	rl.SetShaderValue(
-		shader,
-		textureResolutionLoc,
-		[]float32{TEXTURE_WIDTH, TEXTURE_HEIGHT},
-		rl.ShaderUniformVec2,
-	)
+	image := LoadInitialImage()
+	buffers, sourceBuffer := LoadBuffers(image)
+	shader := LoadShader()
 
 	paused := true
-
-	// periodic FPS log
-	go func() {
-		for {
-			time.Sleep(time.Second)
-			if !paused {
-				log.Print("Current FPS: ", rl.GetFPS())
-			}
-		}
-	}()
+	targetFPS := int32(60)
 
 	drawCell := func(c color.RGBA) {
 		TextureMode(buffers[sourceBuffer], func() {
 			pos := rl.GetMousePosition()
 			rl.DrawPixel(
 				int32(pos.X)/TEXTURE_SCALE,
+				// flip Y since texture is also flipped
+				// also offset by one to compensate for inaccuracies
 				TEXTURE_HEIGHT-int32(pos.Y)/TEXTURE_SCALE-1,
 				c,
 			)
@@ -84,31 +42,36 @@ func main() {
 	}
 
 	for !rl.WindowShouldClose() {
+		// toggle pause
 		if rl.IsKeyPressed(rl.KeySpace) {
 			paused = !paused
 			if paused {
 				rl.SetTargetFPS(60)
 			} else {
-				rl.SetTargetFPS(FPS)
+				rl.SetTargetFPS(targetFPS)
 			}
 		}
 
+		// handle other inputs
 		for char := rl.GetCharPressed(); char != 0; {
 			log.Print(char)
 			switch char {
 			case '+':
-				FPS *= 2
-				rl.SetTargetFPS(FPS)
+				targetFPS *= 2
+				rl.SetTargetFPS(targetFPS)
+
 			case '-':
-				if FPS <= 2 {
+				// don't allow too low FPS
+				if targetFPS <= 2 {
 					break
 				}
 
-				FPS /= 2
-				rl.SetTargetFPS(FPS)
+				targetFPS /= 2
+				rl.SetTargetFPS(targetFPS)
 			}
 
-			break
+			break // TODO: GetCharPressed continuously returns the last char,
+			// never 0, therefore we can't really loop here - figure this out!
 		}
 
 		// update target buffer if unpaused or stepped
@@ -154,7 +117,7 @@ func main() {
 			)
 
 			rl.DrawText(
-				fmt.Sprintf("FPS: %d", FPS),
+				fmt.Sprintf("FPS: %d / %d", rl.GetFPS(), targetFPS),
 				20,
 				WINDOW_HEIGHT-50,
 				50,
@@ -172,22 +135,4 @@ func main() {
 			}
 		})
 	}
-}
-
-func DrawingMode(f func()) {
-	rl.BeginDrawing()
-	defer rl.EndDrawing()
-	f()
-}
-
-func ShaderMode(shader rl.Shader, f func()) {
-	rl.BeginShaderMode(shader)
-	defer rl.EndShaderMode()
-	f()
-}
-
-func TextureMode(texture rl.RenderTexture2D, f func()) {
-	rl.BeginTextureMode(texture)
-	defer rl.EndTextureMode()
-	f()
 }
